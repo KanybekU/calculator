@@ -1,135 +1,121 @@
-# calculator
 #include <iostream>
-#include <cmath>
+#include <sstream>
 #include <stack>
 #include <string>
-#include <sstream>
+#include <cmath>
+#include <vector>
 
 using namespace std;
 
-// Function prototypes
-double calculate(const string& expression);
-double power(double base, double exponent);
-double sqrt(double number);
-double abs(double number);
-int round(double number);
-void printHistory(const stack<string>& history);
+int precedence(char op) {
+    if (op == '+' || op == '-')
+        return 1;
+    if (op == '*' || op == '/')
+        return 2;
+    if (op == '^')
+        return 3;
+    return 0;
+}
+
+double applyOp(double a, double b, char op) {
+    switch (op) {
+        case '+': return a + b;
+        case '-': return a - b;
+        case '*': return a * b;
+        case '/': 
+            if (b == 0) {
+                throw invalid_argument("Divide by zero error");
+            }
+            return a / b;
+        case '^': return pow(a, b);
+    }
+    return 0;
+}
+
+double evaluate(string tokens) {
+    int i;
+    stack<double> values;
+    stack<char> ops;
+
+    for (i = 0; i < tokens.length(); i++) {
+        if (tokens[i] == ' ')
+            continue;
+        else if (tokens[i] == '(') {
+            ops.push(tokens[i]);
+        }
+        else if (isdigit(tokens[i])) {
+            double val = 0;
+            while (i < tokens.length() && isdigit(tokens[i])) {
+                val = (val * 10) + (tokens[i] - '0');
+                i++;
+            }
+            values.push(val);
+            i--;
+        }
+        else if (tokens[i] == ')') {
+            while (!ops.empty() && ops.top() != '(') {
+                double val2 = values.top();
+                values.pop();
+
+                double val1 = values.top();
+                values.pop();
+
+                char op = ops.top();
+                ops.pop();
+
+                values.push(applyOp(val1, val2, op));
+            }
+            if (!ops.empty())
+                ops.pop();
+        }
+        else {
+            while (!ops.empty() && precedence(ops.top()) >= precedence(tokens[i])) {
+                double val2 = values.top();
+                values.pop();
+
+                double val1 = values.top();
+                values.pop();
+
+                char op = ops.top();
+                ops.pop();
+
+                values.push(applyOp(val1, val2, op));
+            }
+            ops.push(tokens[i]);
+        }
+    }
+    while (!ops.empty()) {
+        double val2 = values.top();
+        values.pop();
+
+        double val1 = values.top();
+        values.pop();
+
+        char op = ops.top();
+        ops.pop();
+
+        values.push(applyOp(val1, val2, op));
+    }
+    return values.top();
+}
 
 int main() {
-  stack<string> history; // Stores history of calculations
-  string expression;
-
-  cout << "Welcome to the Multi-function Calculator!" << endl;
-
-  do {
-    cout << "\nEnter an expression (or 'h' for history): ";
-    getline(cin, expression);
-
-    if (expression == "h") {
-      printHistory(history);
-    } else {
-      double result = calculate(expression);
-      if (isnan(result)) {
-        cout << "Invalid expression!" << endl;
-      } else {
-        cout << "Result: " << result << endl;
-        history.push(expression + " = " + to_string(result));
-      }
+    string expr;
+    char cont = 'y';
+    cout << "Welcome to the Calculator!" << endl;
+    while (cont == 'y' || cont == 'Y') {
+        cout << "Please enter your arithmetic expression: ";
+        getline(cin, expr);
+        try {
+            double result = evaluate(expr);
+            cout << "Result: " << result << endl;
+        } catch(const invalid_argument& e) {
+            cout << "Error: " << e.what() << endl;
+        }
+        cout << "Do you want to continue? (y/n): ";
+        cin >> cont;
+        cin.ignore();
     }
-
-    cout << "Continue (y/n)? ";
-  } while (toupper(getchar()) == 'Y');
-
-  cout << "Goodbye!" << endl;
-  return 0;
-}
-
-// Function to evaluate a mathematical expression string
-double calculate(const string& expression) {
-  stringstream ss(expression);
-  stack<double> operands;
-  char op;
-
-  while (ss >> op) {
-    if (isdigit(op)) {
-      double num;
-      ss.putback(op);
-      ss >> num;
-      operands.push(num);
-    } else {
-      if (operands.size() < 2) {
-        return NAN; // Not a number (invalid expression)
-      }
-      double b = operands.top();
-      operands.pop();
-      double a = operands.top();
-      operands.pop();
-
-      switch (op) {
-        case '+':
-          operands.push(a + b);
-          break;
-        case '-':
-          operands.push(a - b);
-          break;
-        case '*':
-          operands.push(a * b);
-          break;
-        case '/':
-          if (b == 0) {
-            return NAN; // Divide by zero error
-          }
-          operands.push(a / b);
-          break;
-        case '%':
-          if (int(b) == 0) {
-            return NAN; // Modulo by zero error
-          }
-          operands.push(int(a) % int(b));
-          break;
-        default:
-          return NAN; // Invalid operator
-      }
-    }
-  }
-
-  if (operands.size() != 1) {
-    return NAN; // Invalid expression (extra operands)
-  }
-
-  return operands.top();
-}
-
-// Additional mathematical functions
-double power(double base, double exponent) {
-  return pow(base, exponent);
-}
-
-double sqrt(double number) {
-  if (number < 0) {
-    return NAN; // Square root of negative number error
-  }
-  return sqrt(number);
-}
-
-double abs(double number) {
-  return fabs(number);
-}
-
-int round(double number) {
-  return round(number);
-}
-
-// Function to print calculation history
-void printHistory(const stack<string>& history) {
-  if (history.empty()) {
-    cout << "No calculations in history yet." << endl;
-  } else {
-    cout << "Calculation History:" << endl;
-    stack<string> temp = history; // Create a copy to avoid modifying original
-    while (!temp.empty()) {
-      cout << temp.top() << endl;
-      temp.pop();
-    }
-  }
+    cout << "Thank you for using the Calculator!" << endl;
+    return 0;
 }
